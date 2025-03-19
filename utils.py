@@ -1,14 +1,47 @@
 import requests
-import os
+import time
+import signal
+import sys
+import subprocess
 from bs4 import BeautifulSoup
 from config import config
-from db import image_exists, insert_image
+from celery_app import download_image
 
 headers = {
     "Authorization": f"Bearer {config.token}"
 }
 
+def start_celery_workers():
+    worker_command = [
+        "celery",
+        "-A", "celery_app",
+        "worker",
+        "--queues=images"
+    ]
+    subprocess.Popen(worker_command)
+
+def start_redis_manual():
+    try:
+        redis_process = subprocess.Popen(["redis-server"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        time.sleep(2)
+        print("Init redis manually")
+        return redis_process
+    except Exception as e:
+        print(f"Error on init redis {e}")
+        return None
+
+def signal_handler(sig, frame):
+    print("\nProgram interrupted. Exiting...")
+    subprocess.Popen(["celery -A celery_app control shutdown"])
+    subprocess.Popen(["killall celery"])
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)
+
 def download_images_from_target(targets):
+    start_redis_manual()
+    start_celery_workers()
+    print("Press Ctrl + C for safety exit")
     for target in targets:
         print(f'Acquiring endpoints for {target}')
         endpoint = config.endpoints[target]
@@ -31,32 +64,10 @@ def download_images_from_target(targets):
                     for object in json_data:
                         for key, value in object.items():
                             if "urlImatgeGaleria" == key:
-                                if not image_exists(target, value):
-                                    name = os.path.basename(value)
-                                    download_image(value, target, name)
-
+                                task = download_image.delay(value, target)
         else:
             print(f"Error trying to acquire {target} pictures. Review the endpoints")
 
-
-def download_image(url, target, filename):
-    try:
-        print(f'Downloading {filename}')
-        response = requests.get(url, stream=True)
-        response.raise_for_status()
-
-        output = os.path.join(config.get_output(target), filename)
-        os.makedirs(config.get_output(target), exist_ok=True)
-        with open(output, "wb") as file:
-            for chunk in response.iter_content(chunk_size=1024):
-                file.write(chunk)
-        print(f'Saved in {output}')
-
-        insert_image(target, url)
-        return True
-    except Exception as e:
-        print(f'Error: Cannot download image {filename}')
-        return False
 
 
 
