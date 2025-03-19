@@ -1,0 +1,13 @@
+*.jpg
+*.JPG
+*.jpeg
+
+.idea/FotosBlog.iml
+.idea/misc.xml
+
+*.xml
+.venv
+
+__pycache__/
+
+data/conf.json
