@@ -2,6 +2,10 @@
 
 FotosBlog CLI is a command-line tool to download images from school blogs. It supports both single-threaded execution (v1.0.0) and concurrent execution using Celery (v2.0.0).
 
+[![Run Tests with Pytest](https://github.com/andresmarinabad/fotosblog/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/andresmarinabad/fotosblog/actions/workflows/test.yml)
+![Static Badge](https://img.shields.io/badge/python-v3.12-green)
+
+
 ## Features
 
 - List available blog targets
