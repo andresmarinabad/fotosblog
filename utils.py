@@ -4,6 +4,7 @@ import signal
 import sys
 import subprocess
 from bs4 import BeautifulSoup
+from db import image_exists
 from config import config
 from celery_app import download_image
 
@@ -64,7 +65,8 @@ def download_images_from_target(targets):
                     for object in json_data:
                         for key, value in object.items():
                             if "urlImatgeGaleria" == key:
-                                task = download_image.delay(value, target)
+                                if not image_exists(target, value):
+                                    download_image.delay(value, target)
         else:
             print(f"Error trying to acquire {target} pictures. Review the endpoints")
 

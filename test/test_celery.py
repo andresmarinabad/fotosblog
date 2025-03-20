@@ -34,7 +34,7 @@ def test_download_image_existing(mock_dependencies):
     url = 'http://example.com/fake_image.jpg'
     target = 'target_directory'
     result = download_image(url, target)
-    mock_dependencies['get'].assert_not_called()
+    mock_dependencies['get'].assert_called_once()
     mock_dependencies['insert_image'].assert_not_called()
     assert result == False
 
