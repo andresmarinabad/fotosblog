@@ -10,11 +10,19 @@ app = Celery(
     backend="redis://localhost:6379/0"
 )
 
+app.conf.update(
+    worker_log_format='%(message)s',
+    worker_task_log_format='%(message)s',
+    worker_redirect_stdouts_level='ERROR',
+    worker_redirect_stdouts=True
+)
+
+app.conf.task_routes = {"celery_app.download_image": {"queue": "images"}}
+
 @app.task
 def download_image(url, target):
     filename = os.path.basename(url)
     try:
-        print(f'Downloading {filename}')
         response = requests.get(url, stream=True)
         response.raise_for_status()
 
@@ -23,12 +31,10 @@ def download_image(url, target):
         with open(output, "wb") as file:
             for chunk in response.iter_content(chunk_size=1024):
                 file.write(chunk)
-        print(f'Saved in {output}')
+        print(f'Downloaded {output}')
 
         insert_image(target, url)
         return True
     except Exception as e:
         print(f'Error: Cannot download image {filename}')
         return False
-
-app.conf.task_routes = {"celery_app.download_image": {"queue": "images"}}

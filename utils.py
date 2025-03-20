@@ -2,11 +2,15 @@ import requests
 import time
 import signal
 import sys
+import redis
 import subprocess
+import multiprocessing
 from bs4 import BeautifulSoup
 from db import image_exists
 from config import config
 from celery_app import download_image
+
+r = redis.StrictRedis(host='localhost', port=6379, db=0)
 
 headers = {
     "Authorization": f"Bearer {config.token}"
@@ -17,9 +21,34 @@ def start_celery_workers():
         "celery",
         "-A", "celery_app",
         "worker",
-        "--queues=images"
+        "--queues=images",
+        "--loglevel=ERROR"
     ]
-    subprocess.Popen(worker_command)
+    worker_process =  subprocess.Popen(worker_command)
+
+    time.sleep(10)
+    try:
+        while True:
+            if is_queue_empty():
+                print("The queue is empty")
+                stop_workers(worker_process)
+                break
+            else:
+                time.sleep(5)
+    except KeyboardInterrupt:
+        print("Process interrupted")
+    finally:
+        stop_workers(worker_process)
+
+
+def is_queue_empty():
+    queue_length = r.llen('images')
+    return queue_length == 0
+
+# Función para detener los workers de Celery
+def stop_workers(worker_process):
+    print("Queue empty. Stopping workers...")
+    worker_process.send_signal(signal.SIGTERM)
 
 def start_redis_manual():
     try:
@@ -31,17 +60,11 @@ def start_redis_manual():
         print(f"Error on init redis {e}")
         return None
 
-def signal_handler(sig, frame):
-    print("\nProgram interrupted. Exiting...")
-    subprocess.Popen(["celery -A celery_app control shutdown"])
-    subprocess.Popen(["killall celery"])
-    sys.exit(0)
-
-signal.signal(signal.SIGINT, signal_handler)
-
 def download_images_from_target(targets):
     start_redis_manual()
-    start_celery_workers()
+    worker_process = multiprocessing.Process(target=start_celery_workers)
+    worker_process.start()
+
     print("Press Ctrl + C for safety exit")
     for target in targets:
         print(f'Acquiring endpoints for {target}')
@@ -56,7 +79,7 @@ def download_images_from_target(targets):
             print('Parsing images links')
             soup = BeautifulSoup(response.text, 'html.parser')
             links = soup.find_all('li')
-            print('Downloading images...')
+            print('Sending endpoint links to the workers...')
             for link in links:
                 id = link.get('id')
                 if id:
@@ -70,6 +93,5 @@ def download_images_from_target(targets):
         else:
             print(f"Error trying to acquire {target} pictures. Review the endpoints")
 
-
-
-
+    worker_process.join()
+    print('All downloaded. Exiting...')
