@@ -31,5 +31,6 @@ def download_image(url, target):
         except Exception as e:
             print(f'Error: Cannot download image {filename}')
             return False
+    return False
 
 app.conf.task_routes = {"celery_app.download_image": {"queue": "images"}}

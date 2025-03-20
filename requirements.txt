@@ -1,5 +1,7 @@
-requests
-bs4
-celery
-redis
-
+requests==2.32.3
+bs4==0.0.2
+celery==5.4.0
+redis==5.2.1
+pytest==8.3.5
+pytest-cov==5.0.0
+pytest-mock==3.14.0
