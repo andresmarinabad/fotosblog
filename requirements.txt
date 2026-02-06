@@ -1,4 +1,4 @@
-requests==2.32.3
+requests==2.32.4
 bs4==0.0.2
 celery==5.4.0
 redis==5.2.1
